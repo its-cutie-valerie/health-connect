@@ -1,50 +1,80 @@
-# Welcome to your Expo app 👋
+# Health Connect Synchronization Framework
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An enterprise-ready mobile application ecosystem designed to bridge Android's native Health Connect API with remote data ingestion systems. This project serves as a robust foundation for health data aggregation, providing a secure and scalable pipeline from device-level sensors to centralized server infrastructure.
 
-## Get started
+## Project Overview
 
-1. Install dependencies
+The **Health Connect Synchronization Framework** simplifies the complex process of interacting with Android's secure health data silos. It implements a full-stack solution—comprising a cross-platform mobile client and a Node.js-based reconciliation server—to demonstrate seamless, permission-guarded health data extraction and synchronization.
+
+## Key Features
+
+- **Native Health Connect Integration**: Implements deep integration with the Android Health Connect SDK for secure, local-first data retrieval.
+- **Granular Permission Management**: Features a robust permission negotiation layer, allowing users to explicitly authorize access to specific data types (Steps, Heart Rate, etc.).
+- **Real-Time Data Aggregation**: Processes and summarizes granular sensor records into actionable daily metrics directly on the device.
+- **Dynamic API Ingestion**: Offers a configurable network layer allow-listing remote endpoints for data synchronization via RESTful APIs.
+- **Cross-Platform Readiness**: Built on Expo, providing an optimized development experience while maintaining accessibility for potential iOS health integrations.
+- **Real-Time Dashboards**: Includes a specialized administrative dashboard for monitoring and validating incoming data payloads in real-time.
+
+## Technology Stack
+
+### Mobile Client
+
+- **Core Framework**: React Native (via Expo SDK 52)
+- **Programming Language**: TypeScript (Strongly Typed architecture)
+- **Native Modules**: `react-native-health-connect` for direct hardware-level API access.
+- **Navigation**: Expo Router (File-based routing system)
+- **Styling**: Themed UI components with support for adaptive light/dark modes.
+
+### Backend Infrastructure
+
+- **Server Environment**: Node.js
+- **API Framework**: Express.js
+- **Data Serialization**: JSON-standardized packets with ISO-8601 timestamps.
+- **Development Tools**: CORS-enabled for cross-origin local testing.
+
+## Technical Architecture
+
+The architecture follows a decoupled client-server pattern:
+
+1. **Ingestion Layer**: A mobile frontend triggers native Android permission dialogs to unlock access to the Health Connect datastore.
+2. **Transformation Layer**: Local data is filtered, reduced, and formatted into structured JSON payloads.
+3. **Transport Layer**: Data is securely transmitted over HTTP/HTTPS to a configurable remote receiver.
+4. **Reconciliation Layer**: The backend server validates, logs, and visualizes the data for administrative oversight.
+
+## Installation & Deployment
+
+### Mobile Setup
+
+1. **Environment Preparation**: Ensure the Android device has the Health Connect application installed.
+2. **Dependency Installation**:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+3. **Local Development Build**:
 
    ```bash
-   npx expo start
+   npx expo run:android
    ```
 
-In the output, you'll find options to open the app in a
+### Backend Deployment
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+1. **Navigate to Directory**:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   ```bash
+   cd backend/
+   ```
 
-## Get a fresh project
+2. **Launch Server**:
 
-When you're ready, run:
+   ```bash
+   node server.js
+   ```
 
-```bash
-npm run reset-project
-```
+## Permissions & Compliance
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+This framework is built with privacy-by-design, strictly adhering to Android's health data privacy requirements. All data access is explicit, user-initiated, and restricted to the permissions declared in `app.json`.
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+*Developed as a showcase for native mobile API integration and full-stack synchronization patterns.*

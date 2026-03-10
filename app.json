@@ -12,6 +12,14 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.valerie.healthconnect",
+      "minSdkVersion": 26,
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_TOTAL_CALORIES_BURNED",
+        "android.permission.health.READ_SLEEP"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -38,7 +46,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "react-native-health-connect"
     ],
     "experiments": {
       "typedRoutes": true,
