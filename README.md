@@ -9,11 +9,13 @@ The **Health Connect Synchronization Framework** simplifies the complex process 
 ## Key Features
 
 - **Native Health Connect Integration**: Implements deep integration with the Android Health Connect SDK for secure, local-first data retrieval.
-- **Granular Permission Management**: Features a robust permission negotiation layer, allowing users to explicitly authorize access to specific data types (Steps, Heart Rate, etc.).
-- **Real-Time Data Aggregation**: Processes and summarizes granular sensor records into actionable daily metrics directly on the device.
-- **Dynamic API Ingestion**: Offers a configurable network layer allow-listing remote endpoints for data synchronization via RESTful APIs.
-- **Cross-Platform Readiness**: Built on Expo, providing an optimized development experience while maintaining accessibility for potential iOS health integrations.
-- **Real-Time Dashboards**: Includes a specialized administrative dashboard for monitoring and validating incoming data payloads in real-time.
+- **Background Auto-Sync**: Efficient background tasks using `expo-background-fetch` and `expo-task-manager` to keep health data synchronized even when the app is closed.
+- **Expanded Data Categories**: Support for 20+ data types including Steps, Heart Rate, Sleep, Blood Glucose, Oxygen Saturation, Respiratory Rate, and more.
+- **Granular Permission Management**: A robust permission negotiation layer allowing users to explicitly authorize access to specific health metrics.
+- **Secure Configuration**: Uses `expo-secure-store` to encrypt sensitive user identifiers, API credentials, and sync settings.
+- **Synchronization Audit Logs**: On-device history tracking for monitoring sync status, record counts, and potential reconciliation errors.
+- **Real-Time Dashboards**: Optimized administrative dashboard for monitoring and validating incoming data payloads in real-time.
+- **Adaptive UI/UX**: Premium interface with native Dark Mode support, haptic feedback integration, and fluid transitions.
 
 ## Technology Stack
 
@@ -23,6 +25,8 @@ The **Health Connect Synchronization Framework** simplifies the complex process 
 - **Programming Language**: TypeScript (Strongly Typed architecture)
 - **Native Modules**: `react-native-health-connect` for direct hardware-level API access.
 - **Navigation**: Expo Router (File-based routing system)
+- **State Management**: Custom hooks for secure settings and synchronization logic.
+- **Background Tasks**: Expo Task Manager & Background Fetch.
 - **Styling**: Themed UI components with support for adaptive light/dark modes.
 
 ### Backend Infrastructure
@@ -36,8 +40,8 @@ The **Health Connect Synchronization Framework** simplifies the complex process 
 
 The architecture follows a decoupled client-server pattern:
 
-1. **Ingestion Layer**: A mobile frontend triggers native Android permission dialogs to unlock access to the Health Connect datastore.
-2. **Transformation Layer**: Local data is filtered, reduced, and formatted into structured JSON payloads.
+1. **Ingestion Layer**: Mobile frontend triggers native Android permission dialogs to unlock access to the Health Connect datastore.
+2. **Persistence & Sync**: A background worker periodically polls the Health Connect API, transforms the data into standardized payloads, and transmits it via secure REST endpoints.
 3. **Transport Layer**: Data is securely transmitted over HTTP/HTTPS to a configurable remote receiver.
 4. **Reconciliation Layer**: The backend server validates, logs, and visualizes the data for administrative oversight.
 
@@ -74,7 +78,8 @@ The architecture follows a decoupled client-server pattern:
 
 ## Permissions & Compliance
 
-This framework is built with privacy-by-design, strictly adhering to Android's health data privacy requirements. All data access is explicit, user-initiated, and restricted to the permissions declared in `app.json`.
+This framework is built with privacy-by-design, strictly adhering to Android's health data privacy requirements. All data access is explicit, user-initiated, and restricted to the permissions declared in `app.json`. The application maintains a clear audit trail of data access and synchronization attempts to ensure transparency.
 
 ---
 *Developed as a showcase for native mobile API integration and full-stack synchronization patterns.*
+

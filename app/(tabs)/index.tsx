@@ -1,237 +1,287 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
-import {
-  initialize,
-  requestPermission,
-  readRecords,
-  getSdkStatus,
-  SdkAvailabilityStatus,
-  openHealthConnectSettings,
-  openHealthConnectDataManagement,
-} from 'react-native-health-connect';
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  StyleSheet, 
+  View, 
+  ScrollView, 
+  Alert, 
+  ActivityIndicator, 
+  Platform, 
+  TouchableOpacity,
+  RefreshControl,
+  Dimensions
+} from 'react-native';
+import { getSdkStatus, SdkAvailabilityStatus, initialize } from 'react-native-health-connect';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { useHealthSettings } from '@/hooks/use-health-settings';
+import { fetchHealthData, uploadHealthData } from '@/services/health-service';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+
+const { width } = Dimensions.get('window');
+const COLUMN_WIDTH = (width - 60) / 2;
 
 export default function HomeScreen() {
-  const [sdkAvailable, setSdkAvailable] = useState<boolean>(false);
-  const [hasPermissions, setHasPermissions] = useState<boolean>(false);
-  const [steps, setSteps] = useState<number | null>(null);
-  const [apiEndpoint, setApiEndpoint] = useState<string>('http://192.168.1.x:3000/api/health');
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [status, setStatus] = useState<string>('Initializing...');
+  const { settings, addHistoryEntry, isLoading: settingsLoading } = useHealthSettings();
+  const [sdkStatus, setSdkStatus] = useState<string>('Initializing...');
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [healthData, setHealthData] = useState<any>(null);
+  const [liveMetrics, setLiveMetrics] = useState<Record<string, number>>({});
+  
+  const [isFetching, setIsFetching] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const primaryColor = useThemeColor({}, 'primary');
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const subtextColor = useThemeColor({}, 'subtext');
+  const successColor = useThemeColor({}, 'success');
+  const errorColor = useThemeColor({}, 'error');
+  const textColor = useThemeColor({}, 'text');
+
+  const checkHealthConnect = useCallback(async () => {
+    if (Platform.OS !== 'android') {
+      setSdkStatus('Android Only');
+      return;
+    }
+
+    try {
+      const status = await getSdkStatus();
+      if (status === SdkAvailabilityStatus.SDK_AVAILABLE) {
+        const ok = await initialize();
+        setIsInitialized(ok);
+        setSdkStatus(ok ? 'Active' : 'Init Failed');
+        if (ok) refreshMetrics();
+      } else {
+        setSdkStatus('Unavailable');
+      }
+    } catch (e) {
+      setSdkStatus('Error');
+    }
+  }, [settings]);
 
   useEffect(() => {
-    // Only attempt to check Health Connect on Android
-    if (Platform.OS === 'android') {
-      checkAvailability();
-    } else {
-      setStatus('Health Connect is Android-only');
-    }
-  }, []);
+    checkHealthConnect();
+  }, [checkHealthConnect]);
 
-  const checkAvailability = async () => {
+  const refreshMetrics = async () => {
     try {
-      // Small delay to ensure bridge is ready, though usually not needed
-      const availability = await getSdkStatus();
-      
-      if (availability === SdkAvailabilityStatus.SDK_AVAILABLE) {
-        setSdkAvailable(true);
-        const isInitialized = await initialize();
-        if (isInitialized) {
-          setStatus('Health Connect Ready');
-        }
-      } else if (availability === SdkAvailabilityStatus.SDK_UNAVAILABLE) {
-        setStatus('Health Connect unavailable/not installed');
-      } else if (availability === SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
-        setStatus('Health Connect update required');
-      } else {
-        setStatus('Health Connect not supported');
-      }
-    } catch (error: any) {
-      console.error('Health Connect Error:', error);
-      // This is likely where the "Not Linked" error was caught
-      setStatus('SDK Link Error (Are you in Expo Go?)');
-    }
-  };
-
-  const connectAndFetch = async () => {
-    if (!sdkAvailable) {
-      Alert.alert('Not Available', 'Health Connect is not available on this device or app build.');
-      return;
-    }
-
-    try {
-      setStatus('Requesting Permissions...');
-      const granted = await requestPermission([
-        { accessType: 'read', recordType: 'Steps' },
-        { accessType: 'read', recordType: 'HeartRate' },
-      ]);
-      
-      setHasPermissions(true);
-      setStatus('Fetching Data...');
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const result = await readRecords('Steps', {
-        timeRangeFilter: {
-          operator: 'after',
-          startTime: today.toISOString(),
-        },
+      const data = await fetchHealthData({
+        ...settings,
+        lookbackDays: 1, // Always show today's metrics
       });
-
-      const totalSteps = result.records.reduce((acc: number, record: any) => acc + (record.count || 0), 0);
-      setSteps(totalSteps);
-      setStatus(`Fetched ${totalSteps} steps.`);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to fetch data');
-      setStatus('Fetch Failed');
+      const counts: Record<string, number> = {};
+      Object.entries(data).forEach(([type, records]: [string, any]) => {
+        counts[type] = records.length;
+      });
+      setLiveMetrics(counts);
+    } catch (e) {
+      console.warn('Failed to refresh metrics', e);
     }
   };
 
-  const openSettings = () => {
-    try {
-      openHealthConnectSettings();
-    } catch (error: any) {
-      Alert.alert('Error', 'Could not open Health Connect settings');
-    }
-  };
-
-  const openDataManagement = () => {
-    try {
-      openHealthConnectDataManagement();
-    } catch (error: any) {
-      Alert.alert('Error', 'Could not open Health Connect data management');
-    }
-  };
-
-  const sendToApi = async () => {
-    if (steps === null) {
-      Alert.alert('No data', 'Please fetch data first');
+  const onFetch = async () => {
+    if (!isInitialized) {
+      Alert.alert('Error', 'Health Connect not initialized');
       return;
     }
-
-    setIsSyncing(true);
-    setStatus('Sending to API...');
     
+    setIsFetching(true);
     try {
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          timestamp: new Date().toISOString(),
-          steps: steps,
-          device: 'Android Device',
-          platform: Platform.OS,
-        }),
-      });
-
-      if (response.ok) {
-        Alert.alert('Success', 'Data synced to network!');
-        setStatus('Sync Complete');
-      } else {
-        throw new Error(`Server error: ${response.status}`);
+      const data = await fetchHealthData(settings);
+      setHealthData(data);
+      refreshMetrics();
+      const total = Object.values(data).reduce((acc: number, curr: any) => acc + curr.length, 0);
+      if (total === 0) {
+        Alert.alert('Notification', 'No new records found for selected categories.');
       }
-    } catch (error: any) {
-      Alert.alert('Sync Failed', error.message);
-      setStatus('Sync Failed');
+    } catch (e: any) {
+      Alert.alert('Fetch Error', e.message);
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  const onSync = async () => {
+    if (!healthData) return;
+    setIsSyncing(true);
+    try {
+      await uploadHealthData(healthData, settings);
+      Alert.alert('Success', 'Data synced to cloud successfully!');
+      setHealthData(null); 
+      refreshMetrics();
+    } catch (e: any) {
+      Alert.alert('Sync Error', e.message);
     } finally {
       setIsSyncing(false);
     }
   };
 
+  const onExport = async () => {
+    if (!healthData) {
+      Alert.alert('No Data', 'Fetch data first before exporting.');
+      return;
+    }
+
+    try {
+      const fileName = `health_data_${new Date().getTime()}.json`;
+      const fileUri = (FileSystem.cacheDirectory || FileSystem.documentDirectory || "") + fileName;
+      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(healthData, null, 2));
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export Health Data' });
+      } else {
+        Alert.alert('Error', 'Sharing is not available on this device');
+      }
+    } catch (e: any) {
+      Alert.alert('Export Failed', e.message);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await checkHealthConnect();
+    setRefreshing(false);
+  };
+
+  if (settingsLoading) return null;
+
+  const totalRecords = healthData ? Object.values(healthData).reduce((acc: number, curr: any) => acc + curr.length, 0) : 0;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Health Connect</ThemedText>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />}
+    >
+      <ThemedView style={styles.header}>
+        <ThemedText type="title">Health Sync</ThemedText>
+        <View style={[styles.statusTag, { backgroundColor: isInitialized ? successColor + '20' : errorColor + '20' }]}>
+          <ThemedText style={[styles.statusTagText, { color: isInitialized ? successColor : errorColor }]}>
+            {sdkStatus}
+          </ThemedText>
+        </View>
       </ThemedView>
 
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">System Status</ThemedText>
-        <ThemedText style={[styles.statusText, !sdkAvailable && styles.errorText]}>
-          {status}
+      {/* Metric Tiles */}
+      <View style={styles.metricsGrid}>
+        <MetricTile label="Steps" value={liveMetrics.Steps} icon="👣" color={primaryColor} />
+        <MetricTile label="Heart Rate" value={liveMetrics.HeartRate} icon="❤️" color="#F87171" />
+        <MetricTile label="Distance" value={liveMetrics.Distance} icon="📏" color="#60A5FA" />
+        <MetricTile label="Calories" value={liveMetrics.TotalCaloriesBurned} icon="🔥" color="#FB923C" />
+      </View>
+
+      {/* Sync Control Card */}
+      <ThemedView style={[styles.card, { backgroundColor: cardColor, borderColor }]}>
+        <ThemedText type="subtitle">Cloud Sync</ThemedText>
+        <ThemedText style={{ color: subtextColor, fontSize: 13 }}>
+          Next background sync: {settings.autoSync ? `Every ${settings.syncIntervalHours}h` : 'Disabled'}
         </ThemedText>
-        {!sdkAvailable && Platform.OS === 'android' && (
-          <ThemedText style={styles.hintText}>
-            Note: This requires a Development Build, not Expo Go.
+
+        {healthData ? (
+          <View style={styles.summaryBox}>
+            <ThemedText type="defaultSemiBold">Ready to Sync ({totalRecords} total):</ThemedText>
+            {Object.entries(healthData).map(([type, records]: [string, any]) => (
+              <View key={type} style={styles.dataRow}>
+                <ThemedText style={{ fontSize: 13, color: subtextColor }}>{type}</ThemedText>
+                <ThemedText style={{ fontSize: 13, fontWeight: '700' }}>{records.length}</ThemedText>
+              </View>
+            ))}
+            <TouchableOpacity style={[styles.exportBtn, { borderColor: primaryColor }]} onPress={onExport}>
+              <ThemedText style={{ color: primaryColor, fontSize: 12, fontWeight: 'bold' }}>EXPORT TO JSON</ThemedText>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <ThemedText style={{ color: subtextColor, fontSize: 12, fontStyle: 'italic' }}>
+            No data staged. Pull latest from Health Connect to start.
           </ThemedText>
         )}
-        
-        <View style={styles.buttonGroup}>
+
+        <View style={styles.actionGroup}>
           <TouchableOpacity 
-            style={[styles.primaryButton, !sdkAvailable && styles.buttonDisabled]} 
-            onPress={connectAndFetch}
-            disabled={!sdkAvailable}
+            style={[styles.button, { backgroundColor: primaryColor }, isFetching && styles.buttonDisabled]} 
+            onPress={onFetch}
+            disabled={isFetching || !isInitialized}
           >
-            <ThemedText style={styles.buttonText}>Connect Health Connect</ThemedText>
+            {isFetching ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.buttonText}>Pull Records</ThemedText>}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.button, { backgroundColor: successColor }, (!healthData || isSyncing) && styles.buttonDisabled]} 
+            onPress={onSync}
+            disabled={!healthData || isSyncing}
+          >
+            {isSyncing ? <ActivityIndicator color="#fff" /> : (
+              <ThemedText style={styles.buttonText}>Upload to Cloud</ThemedText>
+            )}
           </TouchableOpacity>
         </View>
       </ThemedView>
 
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">Step Data</ThemedText>
-        <View style={styles.dataRow}>
-          <ThemedText type="defaultSemiBold">Today's Steps:</ThemedText>
-          <ThemedText type="title" style={styles.stepsValue}>
-            {steps !== null ? steps.toLocaleString() : '--'}
-          </ThemedText>
-        </View>
-        
-        <TouchableOpacity 
-          style={[styles.button, (!sdkAvailable || !hasPermissions) && styles.buttonDisabled]} 
-          onPress={connectAndFetch}
-          disabled={!sdkAvailable || !hasPermissions}
-        >
-          <ThemedText style={styles.buttonText}>Refresh Data</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
-
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">Network Settings</ThemedText>
-        <ThemedText style={styles.label}>API Endpoint</ThemedText>
-        <TextInput
-          style={styles.input}
-          value={apiEndpoint}
-          onChangeText={setApiEndpoint}
-          placeholder="https://your-api.com/data"
-          autoCapitalize="none"
-        />
-        
-        <TouchableOpacity 
-          style={[styles.syncButton, (isSyncing || steps === null) && styles.buttonDisabled]} 
-          onPress={sendToApi}
-          disabled={isSyncing || steps === null}
-        >
-          {isSyncing ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.buttonText}>Send to API</ThemedText>}
-        </TouchableOpacity>
-        
-        <ThemedText style={styles.hintText}>
-          Ensure the server is reachable from the mobile device. For local development, use the computer's local network IP.
-        </ThemedText>
+      {/* Sync History Log */}
+      <ThemedView style={[styles.card, { backgroundColor: cardColor, borderColor, gap: 8 }]}>
+        <ThemedText type="subtitle">Recent Activity</ThemedText>
+        {settings.history && settings.history.length > 0 ? (
+          settings.history.map((entry) => (
+            <View key={entry.id} style={styles.historyItem}>
+              <View style={[styles.dot, { backgroundColor: entry.status === 'success' ? successColor : entry.status === 'failure' ? errorColor : subtextColor }]} />
+              <View style={{ flex: 1 }}>
+                <ThemedText style={{ fontSize: 13, fontWeight: '600' }}>
+                  {entry.status === 'success' ? `Synced ${entry.recordCount} records` : entry.status === 'no_data' ? 'No new data' : 'Sync failed'}
+                </ThemedText>
+                <ThemedText style={{ fontSize: 11, color: subtextColor }}>
+                  {new Date(entry.timestamp).toLocaleTimeString()} — {entry.message || (entry.status === 'success' ? 'Successful upload' : '')}
+                </ThemedText>
+              </View>
+            </View>
+          ))
+        ) : (
+          <ThemedText style={{ color: subtextColor, fontSize: 12, textAlign: 'center', marginTop: 10 }}>No history yet.</ThemedText>
+        )}
       </ThemedView>
     </ScrollView>
   );
 }
 
+function MetricTile({ label, value, icon, color }: { label: string, value?: number, icon: string, color: string }) {
+  const cardColor = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const subtextColor = useThemeColor({}, 'subtext');
+
+  return (
+    <View style={[styles.metricTile, { backgroundColor: cardColor, borderColor }]}>
+      <ThemedText style={{ fontSize: 24 }}>{icon}</ThemedText>
+      <ThemedText style={{ fontSize: 22, fontWeight: 'bold', marginTop: 4 }}>{value || 0}</ThemedText>
+      <ThemedText style={{ fontSize: 11, color: subtextColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</ThemedText>
+      <View style={[styles.progressLine, { backgroundColor: color + '20' }]}>
+        <View style={[styles.progressPoint, { backgroundColor: color, width: `${Math.min(100, (value || 0) / 100)}%` as any }]} />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  content: { padding: 20, paddingTop: 60, gap: 20 },
-  titleContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, backgroundColor: 'transparent' },
-  card: { padding: 20, borderRadius: 16, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3, gap: 12 },
-  statusText: { fontSize: 16, color: '#666', fontWeight: '500' },
-  errorText: { color: '#d9534f' },
-  hintText: { fontSize: 12, color: '#888', fontStyle: 'italic' },
-  dataRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 10 },
-  stepsValue: { color: '#007AFF' },
-  label: { fontSize: 14, color: '#888', marginBottom: -4 },
-  input: { height: 48, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 12, fontSize: 16, color: '#333' },
-  button: { backgroundColor: '#007AFF', height: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  syncButton: { backgroundColor: '#28a745', height: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  buttonDisabled: { backgroundColor: '#ccc' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  buttonGroup: { marginTop: 8 },
-  primaryButton: { backgroundColor: '#007AFF', height: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  outlineButton: { flex: 1, height: 40, borderRadius: 8, borderWidth: 1, borderColor: '#007AFF', justifyContent: 'center', alignItems: 'center' },
-  outlineButtonText: { color: '#007AFF', fontSize: 14, fontWeight: '600' },
+  container: { flex: 1 },
+  content: { padding: 20, paddingTop: 64, gap: 16, paddingBottom: 40 },
+  header: { backgroundColor: 'transparent', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  statusTag: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+  statusTagText: { fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  metricTile: { width: COLUMN_WIDTH, padding: 16, borderRadius: 24, borderWidth: 1, alignItems: 'center' },
+  progressLine: { height: 3, width: '100%', borderRadius: 1.5, marginTop: 12, overflow: 'hidden' },
+  progressPoint: { height: '100%', borderRadius: 1.5 },
+  card: { padding: 20, borderRadius: 28, borderWidth: 1, gap: 14 },
+  summaryBox: { backgroundColor: 'rgba(0,0,0,0.02)', padding: 14, borderRadius: 16, gap: 4 },
+  dataRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  exportBtn: { marginTop: 8, borderWidth: 1, paddingVertical: 6, borderRadius: 10, alignItems: 'center' },
+  actionGroup: { gap: 10, marginTop: 8 },
+  button: { height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', elevation: 2 },
+  buttonDisabled: { opacity: 0.5, elevation: 0 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  historyItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
 });
