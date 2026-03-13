@@ -31,6 +31,12 @@ const SYNC_OPTIONS: { id: SyncType; label: string; icon: string }[] = [
   { id: 'RespiratoryRate', label: 'Breath Rate', icon: '🌬️' },
   { id: 'RestingHeartRate', label: 'Resting HR', icon: '💓' },
   { id: 'Vo2Max', label: 'VO2 Max', icon: '🫀' },
+  { id: 'CyclingPedalingCadence', label: 'Cycling Cadence', icon: '🚴' },
+  { id: 'StepsCadence', label: 'Step Cadence', icon: '🏃‍♂️' },
+  { id: 'Speed', label: 'Speed', icon: '🏎️' },
+  { id: 'ElevationGained', label: 'Elevation', icon: '⛰️' },
+  { id: 'LeanBodyMass', label: 'Lean Body Mass', icon: '💪' },
+  { id: 'ExerciseRoute', label: 'Workout Route', icon: '📍' },
 ];
 
 const INTERVAL_OPTIONS = [

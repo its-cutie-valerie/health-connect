@@ -23,7 +23,13 @@ export type SyncType =
   | 'OxygenSaturation'
   | 'RespiratoryRate'
   | 'RestingHeartRate'
-  | 'Vo2Max';
+  | 'Vo2Max'
+  | 'CyclingPedalingCadence'
+  | 'StepsCadence'
+  | 'Speed'
+  | 'ElevationGained'
+  | 'LeanBodyMass'
+  | 'ExerciseRoute';
 
 export interface SyncHistoryEntry {
   id: string;
@@ -72,6 +78,12 @@ const DEFAULT_SETTINGS: HealthSettings = {
     RespiratoryRate: true,
     RestingHeartRate: true,
     Vo2Max: true,
+    CyclingPedalingCadence: true,
+    StepsCadence: true,
+    Speed: true,
+    ElevationGained: true,
+    LeanBodyMass: true,
+    ExerciseRoute: true,
   },
   apiEndpoint: 'http://192.168.1.x:3000/api/health',
   userId: 'user_valerie',

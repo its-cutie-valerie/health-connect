@@ -2,14 +2,23 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { AppRegistry, Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import { registerBackgroundSync } from '@/services/background-sync';
+import { performFullSync } from '@/services/health-service';
 
 // Import background task definition to ensure it's registered early
 import '@/services/background-sync';
+
+// Register Headless JS task for Android Widget
+AppRegistry.registerHeadlessTask('WidgetSyncTask', () => async () => {
+  console.log('[HeadlessJS] Widget Sync Task started');
+  await performFullSync();
+  console.log('[HeadlessJS] Widget Sync Task complete');
+});
 
 export const unstable_settings = {
   anchor: '(tabs)',

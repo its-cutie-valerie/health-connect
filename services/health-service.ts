@@ -6,26 +6,30 @@ import { sendSyncNotification } from './notification-service';
 const SETTINGS_KEY = 'health_sync_settings';
 
 export async function requestAllHealthPermissions(syncEnabled: Record<SyncType, boolean>) {
-  const permissions = Object.entries(syncEnabled)
-    .filter(([_, enabled]) => enabled)
+  const permissions: any[] = Object.entries(syncEnabled)
+    .filter(([type, enabled]) => enabled && type !== 'ExerciseRoute')
     .map(([type, _]) => ({ 
       recordType: type as any, 
       accessType: 'read' as const 
     }));
   
+  // Add special permissions
+  permissions.push({ recordType: 'BackgroundAccessPermission', accessType: 'read' });
+  permissions.push({ recordType: 'ReadHealthDataHistory', accessType: 'read' });
+  
   if (permissions.length === 0) return true;
   
   try {
     return await requestPermission(permissions);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to request permissions:', err);
-    throw err;
+    throw new Error(`Permission Request Failed: ${err.message}. Please check if you have Health Connect installed and updated.`);
   }
 }
 
 export async function fetchHealthData(settings: HealthSettings) {
   const syncTypes = Object.entries(settings.syncEnabled)
-    .filter(([_, enabled]) => enabled)
+    .filter(([type, enabled]) => enabled && type !== 'ExerciseRoute')
     .map(([type, _]) => type as SyncType);
 
   if (syncTypes.length === 0) return {};
@@ -51,8 +55,10 @@ export async function fetchHealthData(settings: HealthSettings) {
         },
       });
       healthData[type] = result.records;
-    } catch (err) {
-      console.warn(`Failed to fetch ${type}:`, err);
+    } catch (err: any) {
+      // Use debug logging instead of warnings to avoid spamming the console 
+      // when a user hasn't granted a specific permission yet
+      console.debug(`[BackgroundSync] Could not fetch ${type}: ${err.message ? err.message : err}`);
     }
   }
 
@@ -137,6 +143,12 @@ export async function performFullSync() {
   if (!stored) return false;
   
   const settings: HealthSettings = JSON.parse(stored);
+  
+  // Provide immediate feedback
+  if (settings.notificationsEnabled) {
+    await sendSyncNotification('Sync Started', 'Gathering health data from Health Connect...');
+  }
+
   try {
     const data = await fetchHealthData(settings);
     return await uploadHealthData(data, settings);
