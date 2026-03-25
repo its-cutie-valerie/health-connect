@@ -17,6 +17,11 @@ export async function requestAllHealthPermissions(syncEnabled: Record<SyncType, 
   permissions.push({ recordType: 'BackgroundAccessPermission', accessType: 'read' });
   permissions.push({ recordType: 'ReadHealthDataHistory', accessType: 'read' });
   
+  // Exercise Routes (Special case for some versions)
+  if (syncEnabled['ExerciseRoute']) {
+    permissions.push({ recordType: 'ExerciseRoute', accessType: 'read' });
+  }
+  
   if (permissions.length === 0) return true;
   
   try {
@@ -54,7 +59,11 @@ export async function fetchHealthData(settings: HealthSettings) {
           startTime: range,
         },
       });
-      healthData[type] = result.records;
+      // Strip metadata from records to reduce noise and payload size
+      healthData[type] = result.records.map(r => {
+        const { metadata, ...rest } = r;
+        return rest;
+      });
     } catch (err: any) {
       // Use debug logging instead of warnings to avoid spamming the console 
       // when a user hasn't granted a specific permission yet

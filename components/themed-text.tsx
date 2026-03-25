@@ -5,14 +5,14 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
   darkColor?: string;
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+  type?: 'display' | 'headline' | 'title' | 'body' | 'label' | 'link';
 };
 
 export function ThemedText({
   style,
   lightColor,
   darkColor,
-  type = 'default',
+  type = 'body',
   ...rest
 }: ThemedTextProps) {
   const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
@@ -21,10 +21,11 @@ export function ThemedText({
     <Text
       style={[
         { color },
-        type === 'default' ? styles.default : undefined,
+        type === 'display' ? styles.display : undefined,
+        type === 'headline' ? styles.headline : undefined,
         type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
+        type === 'body' ? styles.body : undefined,
+        type === 'label' ? styles.label : undefined,
         type === 'link' ? styles.link : undefined,
         style,
       ]}
@@ -34,27 +35,39 @@ export function ThemedText({
 }
 
 const styles = StyleSheet.create({
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
+  display: {
+    fontSize: 45,
+    lineHeight: 52,
+    fontWeight: '400',
+    letterSpacing: -0.2,
   },
-  defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
+  headline: {
+    fontSize: 32,
+    lineHeight: 40,
+    fontWeight: '400',
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '500',
+    letterSpacing: 0.1,
   },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  body: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400',
+    letterSpacing: 0.5,
+  },
+  label: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
   link: {
-    lineHeight: 30,
     fontSize: 16,
+    lineHeight: 24,
     color: '#0a7ea4',
+    textDecorationLine: 'underline',
   },
 });

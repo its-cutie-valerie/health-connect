@@ -5,7 +5,7 @@ import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
-type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
+type IconMapping = Partial<Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>>;
 type IconSymbolName = keyof typeof MAPPING;
 
 /**
@@ -20,6 +20,28 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'arrow.triangle.2.circlepath': 'sync',
   'gearshape.fill': 'settings',
+  'footprints.fill': 'directions-walk',
+  'heart.fill': 'favorite',
+  'ruler': 'straighten',
+  'flame.fill': 'whatshot',
+  'figure.walk': 'directions-run',
+  'moon.zzz.fill': 'bedtime',
+  'scalemass.fill': 'monitor-weight',
+  'dna': 'biotech',
+  'drop.fill': 'water-drop',
+  'stethoscope': 'medical-services',
+  'chart.line.downtrend.xyaxis': 'trending-down',
+  'thermometer': 'thermostat',
+  'figure.strengthtraining.traditional': 'fitness-center',
+  'stairs': 'layers',
+  'apple.logo': 'restaurant',
+  'lungs.fill': 'air',
+  'wind': 'air',
+  'heart.circle.fill': 'favorite-border',
+  'bicycle': 'directions-bike',
+  'speedometer': 'speed',
+  'mountain.2.fill': 'terrain',
+  'map.fill': 'map',
 } as IconMapping;
 
 /**

@@ -8,7 +8,8 @@ import {
   Platform, 
   TouchableOpacity,
   RefreshControl,
-  Dimensions
+  Dimensions,
+  Pressable
 } from 'react-native';
 import { getSdkStatus, SdkAvailabilityStatus, initialize } from 'react-native-health-connect';
 import * as Sharing from 'expo-sharing';
@@ -42,6 +43,8 @@ export default function HomeScreen() {
   const successColor = useThemeColor({}, 'success');
   const errorColor = useThemeColor({}, 'error');
   const textColor = useThemeColor({}, 'text');
+  const onPrimary = useThemeColor({}, 'onPrimary');
+  const onSuccess = useThemeColor({}, 'onSuccess');
 
   const checkHealthConnect = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -159,7 +162,7 @@ export default function HomeScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />}
     >
       <ThemedView style={styles.header}>
-        <ThemedText type="title">Health Sync</ThemedText>
+        <ThemedText type="headline">Health Sync</ThemedText>
         <View style={[styles.statusTag, { backgroundColor: isInitialized ? successColor + '20' : errorColor + '20' }]}>
           <ThemedText style={[styles.statusTagText, { color: isInitialized ? successColor : errorColor }]}>
             {sdkStatus}
@@ -167,24 +170,23 @@ export default function HomeScreen() {
         </View>
       </ThemedView>
 
-      {/* Metric Tiles */}
       <View style={styles.metricsGrid}>
-        <MetricTile label="Steps" value={liveMetrics.Steps} icon="👣" color={primaryColor} />
-        <MetricTile label="Heart Rate" value={liveMetrics.HeartRate} icon="❤️" color="#F87171" />
-        <MetricTile label="Distance" value={liveMetrics.Distance} icon="📏" color="#60A5FA" />
-        <MetricTile label="Calories" value={liveMetrics.TotalCaloriesBurned} icon="🔥" color="#FB923C" />
+        <MetricTile label="Steps" value={liveMetrics.Steps} icon="footprints.fill" color={primaryColor} />
+        <MetricTile label="Heart Rate" value={liveMetrics.HeartRate} icon="heart.fill" color="#F87171" />
+        <MetricTile label="Distance" value={liveMetrics.Distance} icon="ruler" color="#60A5FA" />
+        <MetricTile label="Calories" value={liveMetrics.TotalCaloriesBurned} icon="flame.fill" color="#FB923C" />
       </View>
 
       {/* Sync Control Card */}
-      <ThemedView style={[styles.card, { backgroundColor: cardColor, borderColor }]}>
-        <ThemedText type="subtitle">Cloud Sync</ThemedText>
-        <ThemedText style={{ color: subtextColor, fontSize: 13 }}>
+      <ThemedView type="card" style={styles.card}>
+        <ThemedText type="title">Cloud Sync</ThemedText>
+        <ThemedText type="label" style={{ color: subtextColor }}>
           Next background sync: {settings.autoSync ? `Every ${settings.syncIntervalHours}h` : 'Disabled'}
         </ThemedText>
 
         {healthData ? (
           <View style={styles.summaryBox}>
-            <ThemedText type="defaultSemiBold">Ready to Sync ({totalRecords} total):</ThemedText>
+            <ThemedText type="title" style={{ fontSize: 14 }}>Ready to Sync ({totalRecords} total):</ThemedText>
             {Object.entries(healthData).map(([type, records]: [string, any]) => (
               <View key={type} style={styles.dataRow}>
                 <ThemedText style={{ fontSize: 13, color: subtextColor }}>{type}</ThemedText>
@@ -202,29 +204,31 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.actionGroup}>
-          <TouchableOpacity 
+          <Pressable 
+            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
             style={[styles.button, { backgroundColor: primaryColor }, isFetching && styles.buttonDisabled]} 
             onPress={onFetch}
             disabled={isFetching || !isInitialized}
           >
-            {isFetching ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.buttonText}>Pull Records</ThemedText>}
-          </TouchableOpacity>
+            {isFetching ? <ActivityIndicator color={onPrimary} /> : <ThemedText style={[styles.buttonText, { color: onPrimary }]}>Pull Records</ThemedText>}
+          </Pressable>
 
-          <TouchableOpacity 
+          <Pressable 
+            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
             style={[styles.button, { backgroundColor: successColor }, (!healthData || isSyncing) && styles.buttonDisabled]} 
             onPress={onSync}
             disabled={!healthData || isSyncing}
           >
-            {isSyncing ? <ActivityIndicator color="#fff" /> : (
-              <ThemedText style={styles.buttonText}>Upload to Cloud</ThemedText>
+            {isSyncing ? <ActivityIndicator color={onSuccess} /> : (
+              <ThemedText style={[styles.buttonText, { color: onSuccess }]}>Upload to Cloud</ThemedText>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </ThemedView>
 
       {/* Sync History Log */}
-      <ThemedView style={[styles.card, { backgroundColor: cardColor, borderColor, gap: 8 }]}>
-        <ThemedText type="subtitle">Recent Activity</ThemedText>
+      <ThemedView type="surface" style={styles.card}>
+        <ThemedText type="title">Recent Activity</ThemedText>
         {settings.history && settings.history.length > 0 ? (
           settings.history.map((entry) => (
             <View key={entry.id} style={styles.historyItem}>
@@ -247,41 +251,37 @@ export default function HomeScreen() {
   );
 }
 
-function MetricTile({ label, value, icon, color }: { label: string, value?: number, icon: string, color: string }) {
-  const cardColor = useThemeColor({}, 'card');
-  const borderColor = useThemeColor({}, 'border');
-  const subtextColor = useThemeColor({}, 'subtext');
-
+function MetricTile({ label, value, icon, color }: { label: string, value?: number, icon: any, color: string }) {
   return (
-    <View style={[styles.metricTile, { backgroundColor: cardColor, borderColor }]}>
-      <ThemedText style={{ fontSize: 24 }}>{icon}</ThemedText>
-      <ThemedText style={{ fontSize: 22, fontWeight: 'bold', marginTop: 4 }}>{value || 0}</ThemedText>
-      <ThemedText style={{ fontSize: 11, color: subtextColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</ThemedText>
+    <ThemedView type="card" style={styles.metricTile}>
+      <IconSymbol name={icon} size={32} color={color} />
+      <ThemedText type="title" style={{ marginTop: 8 }}>{value || 0}</ThemedText>
+      <ThemedText type="label" style={{ color: color, opacity: 0.8 }}>{label}</ThemedText>
       <View style={[styles.progressLine, { backgroundColor: color + '20' }]}>
         <View style={[styles.progressPoint, { backgroundColor: color, width: `${Math.min(100, (value || 0) / 100)}%` as any }]} />
       </View>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingTop: 64, gap: 16, paddingBottom: 40 },
-  header: { backgroundColor: 'transparent', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  statusTag: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
-  statusTagText: { fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
+  content: { padding: 16, paddingTop: 64, gap: 16, paddingBottom: 40 },
+  header: { backgroundColor: 'transparent', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 },
+  statusTag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  statusTagText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  metricTile: { width: COLUMN_WIDTH, padding: 16, borderRadius: 24, borderWidth: 1, alignItems: 'center' },
-  progressLine: { height: 3, width: '100%', borderRadius: 1.5, marginTop: 12, overflow: 'hidden' },
-  progressPoint: { height: '100%', borderRadius: 1.5 },
-  card: { padding: 20, borderRadius: 28, borderWidth: 1, gap: 14 },
-  summaryBox: { backgroundColor: 'rgba(0,0,0,0.02)', padding: 14, borderRadius: 16, gap: 4 },
-  dataRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  exportBtn: { marginTop: 8, borderWidth: 1, paddingVertical: 6, borderRadius: 10, alignItems: 'center' },
-  actionGroup: { gap: 10, marginTop: 8 },
-  button: { height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', elevation: 2 },
-  buttonDisabled: { opacity: 0.5, elevation: 0 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  historyItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  metricTile: { width: COLUMN_WIDTH, padding: 20, borderRadius: 28, alignItems: 'center' },
+  progressLine: { height: 4, width: '100%', borderRadius: 2, marginTop: 16, overflow: 'hidden' },
+  progressPoint: { height: '100%', borderRadius: 2 },
+  card: { padding: 24, borderRadius: 28, gap: 16 },
+  summaryBox: { backgroundColor: 'rgba(0,0,0,0.03)', padding: 16, borderRadius: 20, gap: 6 },
+  dataRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
+  exportBtn: { marginTop: 12, borderWidth: 1.5, paddingVertical: 10, borderRadius: 16, alignItems: 'center' },
+  actionGroup: { gap: 12, marginTop: 8 },
+  button: { height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  buttonDisabled: { opacity: 0.38 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.1 },
+  historyItem: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 8 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
 });
